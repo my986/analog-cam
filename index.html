@@ -24,8 +24,14 @@
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
     font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
-    overflow: hidden; overscroll-behavior: none; user-select: none; -webkit-user-select: none; }
-  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+    overflow: hidden; overscroll-behavior: none; user-select: none; -webkit-user-select: none;
+    touch-action: manipulation; -webkit-touch-callout: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; touch-action: manipulation; }
+  /* immediate press feedback (iOS needs a touchstart listener for :active, see script) */
+  #levels button, #thumb, #flip, #clock, #sheet .btns > * { transition: transform .08s, opacity .08s; }
+  #levels button:active, #thumb:active, #flip:active, #clock:active, #sheet .btns > *:active { transform: scale(.9); opacity: .7; }
+  #shutter:active span { transform: scale(.88); }
+  #modes button:active { opacity: .6; }
 
   #app { position: fixed; inset: 0; display: flex; flex-direction: column; height: 100dvh; }
 
@@ -41,7 +47,8 @@
   #clock { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 12px; background: rgba(255,255,255,.12); font-variant-numeric: tabular-nums; }
 
   #finder { flex: 1; position: relative; min-height: 0; display: flex; align-items: center; justify-content: center; }
-  #view { width: 100%; height: 100%; object-fit: contain; display: block; touch-action: pan-y; }
+  #finder, #view { touch-action: none; }
+  #view { width: 100%; height: 100%; object-fit: contain; display: block; }
   #toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
     background: rgba(0,0,0,.7); padding: 8px 14px; border-radius: 16px; font-size: 13px;
     opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; }
@@ -53,18 +60,35 @@
   #controls { flex: none; padding: 8px 0 calc(env(safe-area-inset-bottom) + 18px); }
   #levels { display: flex; justify-content: center; gap: 6px; margin-bottom: 10px; }
   #levels .lab { font-size: 11px; color: var(--dim); align-self: center; margin-right: 2px; }
-  #levels button { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.12); font-size: 13px; font-weight: 600; }
+  #levels button { width: 42px; height: 42px;border-radius: 50%; background: rgba(255,255,255,.12); font-size: 13px; font-weight: 600; }
   #levels button.on { background: rgba(255,255,255,.22); color: var(--accent); }
 
-  #modes { display: flex; gap: 22px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+  #modes { position: relative; display: flex; gap: 6px; overflow-x: auto; touch-action: pan-x; scroll-snap-type: x mandatory; scrollbar-width: none;
     padding: 4px 50%; margin-bottom: 14px; }
   #modes::-webkit-scrollbar { display: none; }
-  #modes button { flex: none; scroll-snap-align: center; text-align: center; color: var(--dim); line-height: 1.15; transition: color .2s; }
+  #modes button { flex: none; scroll-snap-align: center; text-align: center; color: var(--dim); line-height: 1.15; transition: color .2s, opacity .08s;
+    padding: 8px 10px; min-height: 44px; }
   #modes button b { display: block; font-size: 15px; letter-spacing: .04em; }
   #modes button small { font-size: 11px; }
   #modes button.on { color: var(--accent); }
 
   #row { display: flex; align-items: center; justify-content: space-between; padding: 0 36px; }
+
+  /* Landscape phone: viewfinder on the left, controls in a column on the right like a camera app */
+  @media (orientation: landscape) and (max-height: 600px) {
+    #app { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto 1fr; }
+    #top { grid-area: 1 / 1; padding: calc(env(safe-area-inset-top) + 6px) 12px 4px calc(env(safe-area-inset-left) + 12px); }
+    #finder { grid-area: 2 / 1; padding: 0 0 calc(env(safe-area-inset-bottom) + 6px) env(safe-area-inset-left); }
+    #controls { grid-area: 1 / 2 / 3 / 3; display: flex; align-items: stretch; gap: 16px;
+      padding: calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 10px) 4px; }
+    #picker { display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+    #levels { margin: 0; justify-content: flex-start; }
+    #levels .lab { display: none; }
+    #modes { flex-direction: column; overflow: visible; padding: 0; margin: 0; gap: 0; scroll-snap-type: none; touch-action: manipulation; }
+    #modes button { display: flex; align-items: baseline; gap: 8px; text-align: left; min-height: 40px; padding: 8px 6px; }
+    #modes button b { display: inline; }
+    #row { flex-direction: column; justify-content: space-between; padding: 0; }
+  }
   #thumb { width: 48px; height: 48px; border-radius: 8px; background: #222 center/cover no-repeat; border: 2px solid rgba(255,255,255,.2); }
   #thumb:disabled { opacity: .35; }
   #shutter { width: 78px; height: 78px; border-radius: 50%; border: 5px solid #fff; display: grid; place-items: center; }
@@ -100,8 +124,10 @@
     <div id="toast"></div>
   </main>
   <section id="controls">
-    <div id="levels"><span class="lab">劣化</span></div>
-    <div id="modes"></div>
+    <div id="picker">
+      <div id="levels"><span class="lab">劣化</span></div>
+      <div id="modes"></div>
+    </div>
     <div id="row">
       <button id="thumb" disabled aria-label="最後に撮った動画"></button>
       <button id="shutter" aria-label="録画"><span></span></button>
@@ -440,7 +466,7 @@ function composite(buffering) {
 let running = false, last = 0, stallUntil = 0, bufPct = 0;
 function loop(now) {
   requestAnimationFrame(loop);
-  if (!running) return;
+  if (!running || !$('#sheet').hidden) return; // pause while reviewing a clip so playback and buttons stay smooth
   const p = PRESETS[pi], m = LEVELS[li].m;
   if (usingTest) drawTest(now);
   if (now - last < 1000 / p.fps - 2) return;
@@ -476,7 +502,7 @@ function drawTest(now) {
 async function startCamera() {
   if (stream) stream.getTracks().forEach(t => t.stop());
   stream = null;
-  const v = { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } };
+  const v = { facingMode: facing, width: { ideal: 640 }, height: { ideal: 480 } }; // tape res is ≤320px, more only costs upload time
   const md = navigator.mediaDevices;
   if (md && md.getUserMedia) {
     try { stream = await md.getUserMedia({ video: v, audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } }); }
@@ -600,7 +626,7 @@ function selectPreset(i, scroll = true) {
   pi = (i + PRESETS.length) % PRESETS.length;
   const p = PRESETS[pi];
   [...$('#modes').children].forEach((b, j) => b.classList.toggle('on', j === pi));
-  if (scroll) $('#modes').children[pi].scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  if (scroll) centerMode(true);
   $('#spec').textContent = `${p.res[0]}×${p.res[1]} · ${p.fps}fps`;
   const f = $('#eraFlash'); f.textContent = `${p.year} ${p.name}`; f.classList.add('show');
   clearTimeout(flashId); flashId = setTimeout(() => f.classList.remove('show'), 1100);
@@ -624,6 +650,27 @@ LEVELS.forEach((l, i) => {
   const b = document.createElement('button'); b.textContent = l.label; b.onclick = () => selectLevel(i);
   $('#levels').appendChild(b);
 });
+
+// scroll only the carousel itself (scrollIntoView could also shift the fixed app on iOS)
+function centerMode(smooth) {
+  const m = $('#modes'), b = m.children[pi];
+  if (m.scrollWidth <= m.clientWidth + 1) return;
+  m.scrollTo({ left: b.offsetLeft + b.offsetWidth / 2 - m.clientWidth / 2, behavior: smooth ? 'smooth' : 'auto' });
+}
+// swiping the carousel selects whichever era it settles on, as camera apps do
+let modeScrollId = 0;
+$('#modes').addEventListener('scroll', () => {
+  clearTimeout(modeScrollId);
+  modeScrollId = setTimeout(() => {
+    const m = $('#modes');
+    if (m.scrollWidth <= m.clientWidth + 1) return;
+    const c = m.scrollLeft + m.clientWidth / 2;
+    let best = pi, bd = Infinity;
+    [...m.children].forEach((b, i) => { const d = Math.abs(b.offsetLeft + b.offsetWidth / 2 - c); if (d < bd) { bd = d; best = i; } });
+    if (best !== pi) selectPreset(best, false);
+  }, 140);
+}, { passive: true });
+document.addEventListener('touchstart', () => {}, { passive: true });
 
 // swipe on the viewfinder changes era, like switching camera modes
 let sx = null, sy = 0;
@@ -655,6 +702,7 @@ $('#shutter').onclick =() => { if (rec && rec.state === 'recording') stopRec(); 
 $('#thumb').onclick = openSheet;
 $('#flip').onclick = async () => { facing = facing === 'user' ? 'environment' : 'user'; await startCamera(); };
 addEventListener('resize', () => {
+  centerMode(false);
   if (!P || (rec && rec.state === 'recording')) return;
   if ((innerHeight > innerWidth) !== portrait) setupOutput();
 });
